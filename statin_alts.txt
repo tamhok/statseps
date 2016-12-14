@@ -1,0 +1,7 @@
+cholestyramine|prevalite|questran
+colesevelam|welchol
+colfibrate|atromid|chlofibrate
+fenofibrate|antara|fenoglide|lipofen
+gemfibrozil|lopid
+ezetimibe|zetia|liptruzet
+niacin|vitamin b3|niacor|niaspan|slo-niacin|simcor

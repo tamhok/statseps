@@ -1,0 +1,123 @@
+betamethasone|Celestone Soluspan|Celeston
+cortisone|Cortone
+dexamethasone|Active Injection D|Baycadron|Dexamethasone Intensol|DexPak|DoubleDex
+fludrocortisone|Florinef
+hydrocortisone|A-Hydrocort|Cortef|Solu-CORTEF|Hydrocort|Hydrocortone|Lanacort|Alacort
+methylprednisolone|Medrol|SOLU-medrol|A-Methapred|DEPO-Medrol
+paramethasone|Dilar|Dilarmine|Haldrone
+prednisolone|Flo-Pred|Millipred|Millipred|Millipred|Orapred|Orapred|Pediapred|Prelone|Veripred
+prednisone|Deltasone|PredniSONE Intensol|Rayos
+triamcinolone|Aristospan Intra-Articular|Aristospan Intralesional|Arze-Ject-A|Kenalog|Pro-C-Dure 5|Pro-C-Dure 6
+abatacerpt|Orencia
+alefacept|Amevive
+anakinra|Kineret
+atacicept
+azathioprine|Imuran|Azasan
+belatercept|Nulojix
+bleomycin
+chlorambicol
+ciclosporine|Neoral|Sandimmune|SangCya|GenGraf
+cyclophosphamide|cyclophosphamide
+dactinomycin|Cosmegen
+daunorubicin
+dimethyl fumarate|Tecfidera
+doxorubicin|Adraimycin
+epirubicin|Ellence
+etanercept|Enbrel
+everolimus|Zortress|Afinitor
+fingolimod|Gilenya
+fluorouracil|Adrucil
+interferon beta|Avonex, Betaseron
+leflunomide|Arava
+lenalidomide|Revlimid
+mercaptopurine|Purinethol|Purixan
+methotrexate|Otrexup|Rasuvo|Rheumatrex|Trexall
+mithramycin|Mithracin
+mitomycin
+mycophenolate|CellCept|Myfortic|Mycophenolate mofetil|mycophenolic acid
+myriocin
+plicamycin
+pomalidomide|Pomalyst
+rilonacept|Arcalyst
+sirolimus|Rapamune
+tacrolimus|Prograf|Hecoria|Astagraf
+teriflunomide|Aubagio
+thalidomide|Thalomid
+abrilumab|Exemptia
+adalimumab|Humira
+anifrolumab
+antithymocyte globulin|ATG|Rabbit|Atgam
+apolizumab
+aselizumab
+atorolimumab
+basiliximab|Simulect
+belimumab|Benlysta
+benralizumab
+brodalumab
+canakinumab|Ilaris
+cedelizumab
+certolizumab pegol|Cimiza
+daclizumab|Zinbryta|Zenapax
+dupilumab
+eculizumab|Soliris
+efalizumab|Raptiva
+eldelumab
+epratuzumab|LymphoCide
+erlizumab|rhuMAB
+etrolizumab|rhuMAB Beta7
+fontolizumab|HuFAZ
+golimumab|Simponi
+inebilizumab
+infliximab|Remicade
+itolizumab|Alzumab
+ixekizumab|Taltz
+lampalizumab
+lanadelumab|lenzilumab
+lerdelimumab
+ligelizumab
+lulizumab pegol
+mavrilimumab
+mepolizumab|Nucala
+mogamulizumab|Poteligeo
+morolimumab
+muromonab|Orthoclone OKT3
+namilumab
+natalizumab|Tysabri|Antegren
+nivolumab|Opdivo
+ocrelizumab|Oratorio|Ocrebus
+ofatumumab|Arzerra
+omalizumab|Xolair
+oxelumab
+ozoralizumab
+pascolizumab
+pateclizumab
+pexelizumab
+pidilizumab
+placulumab
+plozalizumab
+quilizumab
+reslizumab|Cinqair
+rituximab|Rituxan
+rontalizumab
+rovelizumab|LeukArrest
+ruplizumab
+samalizumab
+sarilumab
+secukinumab|Cosentryx
+sifalimumab
+siltuximab|Sylvant
+siplizumab
+tabalumab|LY 2127399
+talizumab|TNX-901
+teplizumab|MGA031|hOKT3?1|Ala-Ala
+tezepelumab
+tocilizumab|Actemra|RoActemra
+toralizumab
+tregalizumab
+ulocuplumab
+ustekinumab|Stelera
+varlilumab
+vatelizumab
+vedolizumab|Entyvio
+visilizumab|Nuvion
+vobarilizumab

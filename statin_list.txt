@@ -1,0 +1,7 @@
+atorvastatin|lipitor|atorv|liptruzet|caduet
+fluvastatin|lescol|fluva
+lovastatin|mevacor|altoprev|lova
+pravastatin|pravachol|prava
+rosuvastatin|crestor|rosuva
+simvastatin|zocor|simva|vytorin|simcor|juvisync
+pitavastatin|livalo|pitava
