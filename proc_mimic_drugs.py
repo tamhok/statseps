@@ -18,7 +18,7 @@ import time
 import pdb
 import csv
 
-# PATH TO DIRECTORY WITH NOTES
+# PATH TO DIRECTORY WITH NOTES in CSV form
 NOTES_PATH = "C:\\Users\\tamhok\\mimic\\notes"
 
 # PATH TO FILES WITH DRUGS
