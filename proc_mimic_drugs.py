@@ -255,15 +255,18 @@ def main():
 	# Write an sql file to create the table since there are so many columns
 	with open(SQL_FILE, 'w') as f_out:
 		f_out.write("SET search_path TO mimiciii;\n")
-		f_out.write("CREATE TABLE statins_all\n(\n")
-		f_out.write("  row_id integer NOT NULL\n")
-		f_out.write("  hadm_id integer NOT NULL\n")
-		f_out.write("  subject_id integer NOT NULL\n")
-		f_out.write("  chartdate timestamp(0) without time zone\n")
-		f_out.write("  charttime timestamp(0) without time zone\n")
+		f_out.write("CREATE TABLE statins\n(\n")
+		f_out.write("  row_id integer NOT NULL,\n")
+		f_out.write("  hadm_id integer NOT NULL,\n")
+		f_out.write("  subject_id integer NOT NULL,\n")
+		f_out.write("  chartdate timestamp(0) without time zone,\n")
+		f_out.write("  charttime timestamp(0) without time zone,\n")
 		
 		fieldslist = ['hist_found', 'kidney', 'liver', 'heart', 'hypertension', 'diabetes', 'admit_found', 'statin', 'statin_alt', 'suppress'] + flatList
-		[f_out.write("  %s integer\n" % (x) ) for x in fieldslist]
+		
+		fieldslist = [x.replace(" ", "_") for x in fieldslist]
+		
+		[f_out.write("  %s float,\n" % (x) ) for x in fieldslist]
 		
 		f_out.write("CONSTRAINT statins_all_pk PRIMARY KEY (row_id)\n")
 		f_out.write(")")
