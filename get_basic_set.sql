@@ -33,7 +33,7 @@ care_unit AS (
 ),
 sepsis_statins AS (
  WITH statins_max AS (
-  SELECT statin, suppress, hadm_id, row_id, heart AS peripheral_vascular_disease,
+  SELECT DISTINCT statin, suppress, hadm_id, row_id, heart AS peripheral_vascular_disease,
   ROW_NUMBER() OVER (PARTITION BY hadm_id ORDER BY chartdate) AS rn
   FROM statins
  )
