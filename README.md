@@ -4,6 +4,6 @@ This repository contains the files necessary to recreate the dataset for the Sta
 
 Change the file paths in `proc_mimic_drugs.py` to the desired paths, and then run the script. Use the resulting sql table to create the table.
 
-Then, follow instructions from the mimic code on github and run the code to generate the Angus sepsis view and the Elixhauser scores view. Afterwards, run `sepsis_vaso_flg.sql` to generate the auxillary view for vasopressors. 
+Then, follow instructions from the mimic code on github (https://github.com/MIT-LCP/mimic-code) and run the code to generate the Angus sepsis view (`mimic_code/sepsis/angus.sql`) and the Elixhauser scores view (`comorbidity/postgres/elixhauser-ahrq-v37-with-drg.sql`). Afterwards, run `sepsis_vaso_flg.sql` to generate the auxillary view for vasopressors. To generate the SOFA scores, you will need to run `severityscores/make-severity-scores.sql`, which will generate SOFA scores along with a bunch of other scores. In order to compute the creatinine clearance, we also use the height and weight, which can be generated from `demographics/postgres/HeightWeightQuery.sql`.
 
-Finally, run `get_tests.sql` and export the output to `tests_output.csv`. Run `get_basic_set.sql` and export the output to `basic_set.csv`. You can now run the Rmd file in R to generate the output.
+Finally, run `get_tests.sql` and export the output to `tests_output.csv`. Run `get_basic_set.sql` and export the output to `basic_set.csv`. You can now run the Rmd file in R to generate the output. 
