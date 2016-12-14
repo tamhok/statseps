@@ -1,0 +1,370 @@
+---
+title: "Data Analysis for Statins in Sepsis"
+author: "Hok Hei Tam"
+date: "11/28/16"
+output: 
+  html_document: 
+    fig_height: 8
+    fig_width: 10
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(twang)
+library(MIMICbook)
+library(Hmisc)
+library(tableone)
+library(dplyr)
+library(MIMICbook)
+library(sjPlot)
+library(MatchIt)
+library(survey)
+library(drgee)
+library(reshape)
+library(ggplot2)
+
+```
+
+## Setup:
+
+To run this file, you will need the `basic_set.csv`, `notes_output_full.csv`, and `tests_output.csv` files in the same directory as this file. Also, the `scores_20k_newethnic`
+
+## Loading and preparing initial dataset
+
+Key things we do at this point include setting ages > 300 to 90, keeping only those aged 18 and above, reducing the number of ethnicities for later use in the ps models, obtaining the max values of the tests per `hadm_id`, calculating eGFR and creatinine clearance, and computing statin potency from the doses. The potencies are divided into Lo, Med, Hi, LoMed, and MedHi where the last two are for unknown doses. The dose cutoffs are tight around the "medium potency" bound. 
+
+```{r}
+basic_data = read.csv("basic_set.csv")
+
+sofa_names = colnames(basic_data)[17:22]
+elix_names = colnames(basic_data)[25:ncol(basic_data)]
+
+basic_data$on_statins2 = as.integer(basic_data$statin > 0)
+basic_data$on_statins = as.factor(basic_data$statin > 0)
+basic_data$day_2_dead = as.factor(! (basic_data$death>2 | is.na(basic_data$death)))
+basic_data$day_28_dead = as.factor(! (basic_data$death>28 | is.na(basic_data$death)))
+basic_data$day_90_dead = as.factor(! (basic_data$death>90 | is.na(basic_data$death)))
+basic_data$hospital_expire_flag = as.factor(basic_data$hospital_expire_flag)
+
+basic_data$sofa_na = rowSums(basic_data[,sofa_names])
+
+#Reduce ethnicities for later processing
+basic_data$new_ethnic = as.factor(substr(as.character(basic_data$ethnicity),1,2))
+levels(basic_data$new_ethnic) = c("American Indian", "Asian", "Black", "Black", "Hispanic", 
+                                  "MiddleEastern", "Unknown", "Asian", "Unknown", "Unknown", "White", "Unknown", "White")
+
+
+#Set age back to reasonable levels
+basic_data$age[basic_data$age > 100] = 90
+
+#Remove those ovre 18 and with AIDS
+basic_data = basic_data[basic_data$age >= 18,]
+basic_data = basic_data[basic_data$aids == 0,]
+
+#Load drug data set, remove suppressors and rows we don't care about
+drug_data = read.csv("notes_output_full.csv")
+rownames(drug_data) = drug_data$ROW_ID
+drug_data = drug_data[as.character(basic_data$row_id),]
+statin_doses = drug_data[,c(2,grep("vastatin", colnames(drug_data)))]
+
+#Load test data. Use max
+test_data = read.csv("tests_output.csv")
+agg_test = aggregate(test_data$valuenum, 
+                     by=list(hadm_id=test_data$hadm_id, item_id=test_data$itemid, 
+                             uom=tolower(as.character(test_data$valueuom))),
+                     FUN=max)
+ctests = cast(agg_test, hadm_id ~ item_id + uom)
+colnames(ctests) = c("hadm_id", "lactate", "alt", "ast", "creatinine","troponini","troponint")
+
+#insert into basic_set
+basic_data = merge(x=basic_data, y=ctests, by='hadm_id', all.x=TRUE)
+
+#Compute derived tests - cockroft-gault & mdrd
+basic_data$creat_clear = (140 - basic_data$age) * basic_data$weight / (
+  72*basic_data$creatinine)*(1-0.15*(basic_data$gender=="F"))
+
+basic_data$egfr = 175 * basic_data$creatinine^(-1.154)*basic_data$age^(-0.203)*(
+  1-0.258*(basic_data$gender=="F"))*(1 + 0.212 * (basic_data$new_ethnic=="Black"))
+
+#Incorporate statin potency into basic_data. Commented code separates it out based on doses
+
+# potency=apply(statin_doses, 1, function (x) {
+#   hadm_id = x[1]
+#   x = x[-1]
+#   if (sum(x) == 0) return(c(hadm_id, "None"))
+#   if (x[1]+x[5] > 500) return(c(hadm_id, "MedHi"))
+#   if (sum(x[c(2,3,4,6,7)]) > 500) return(c(hadm_id, "LoMed"))
+#   if (x[1] > 39 | x[5] >= 19)
+#     return(c(hadm_id, "Hi"))
+#   if (x[6] > 19 | x[4] > 19 | x[7]>1 | x[3] > 39 | x[2] > 79 | x[1] > 0 | x[5] > 0)
+#     return(c(hadm_id, "Med"))
+#   return(c(hadm_id, "Lo"))
+# })
+
+#INcorporate statin potency. This code sets atorvastatin and rosuvastatin to high, everything else to low.
+potency=apply(statin_doses, 1, function (x) {
+  hadm_id = x[1]
+  x = x[-1]
+  if (sum(x) == 0) return(c(hadm_id,"None"))
+  if (x[1]+x[5] > 0) return(c(hadm_id,"MedHi"))
+  return(c(hadm_id, "LoMed"))
+})
+
+potency = t(potency)
+colnames(potency) = c("hadm_id", "potency")
+basic_data = merge(x=basic_data, y=potency, by='hadm_id', all.x=TRUE)
+basic_data$potency = as.factor(basic_data$potency)
+
+#Create some categorical vars
+basic_data$sofa.cat = cut2(basic_data$sofa, g=4)
+
+#Convert stuff to factors
+basic_data[,elix_names] = lapply(basic_data[,elix_names], factor)
+basic_data[,c("mech_vent", "vaso_flg")] = lapply(basic_data[,c("mech_vent", "vaso_flg")], factor)
+
+```
+
+## Data summary tables
+
+Potential covariates stratified on statin use
+
+```{r}
+#Create TableOne and also figure out which covariates 
+tbl = CreateTableOne(vars=c("age","gender", "new_ethnic", elix_names), strata="on_statins", data=basic_data)
+
+tbl
+
+```
+
+Potential outcomes stratified on statin use
+
+```{r}
+CreateTableOne(vars=c("sofa","day_28_dead", "hospital_expire_flag","mech_vent", "vaso_flg",
+                      "lactate", "alt", "ast", "troponint", "troponini", 
+                      "creatinine", "creat_clear", "egfr"),
+               strata="on_statins", data=basic_data)
+
+
+```
+
+Potential covariates stratified on statin potency
+
+```{r}
+#Create TableOne and also figure out which covariates 
+tbl = CreateTableOne(vars=c("age","gender", "new_ethnic", elix_names), strata="potency", data=basic_data)
+
+tbl
+
+```
+
+Potential outcomes stratified on statin potency
+
+```{r}
+CreateTableOne(vars=c("sofa","day_28_dead", "hospital_expire_flag","mech_vent", 
+                      "lactate", "alt", "ast", "troponint", "troponini", 
+                      "creatinine", "creat_clear", "egfr"),
+               strata="potency", data=basic_data)
+
+
+
+```
+
+## Exploratory visualizations
+
+Odds ratios of various measures:
+
+In severe cases (high SOFAs), statins seem to have more of a protective effect
+```{r}
+  plot_OR_by_level(basic_data,"sofa.cat","hospital_expire_flag", factor.var2="on_statins")
+```
+
+But it only appears to be consistent for medium potency
+
+```{r}
+  plot_OR_by_level(basic_data,"sofa.cat","hospital_expire_flag", factor.var2="potency", ref.group=3)
+```
+
+Statins seem to reduce the need for mechanical ventilation at lower potencies
+
+```{r}
+  plot_OR_by_level(basic_data,"sofa.cat","mech_vent", factor.var2="on_statins")
+```
+
+The effect is largely lost when we look further into it by potency
+
+```{r}
+  plot_OR_by_level(basic_data,"sofa.cat","mech_vent", factor.var2="potency", ref.group=3)
+```
+
+Density plots of the various tests:
+```{r}
+  ggplot(basic_data, aes(x=log(lactate), colour=on_statins)) + geom_density()
+  ggplot(basic_data, aes(x=log(alt), colour=on_statins)) + geom_density()
+  ggplot(basic_data, aes(x=log(ast), colour=on_statins)) + geom_density()
+  ggplot(basic_data, aes(x=log(troponint), colour=on_statins)) + geom_density()
+  ggplot(basic_data, aes(x=log(egfr), colour=on_statins)) + geom_density()
+  ggplot(basic_data, aes(x=log(creat_clear), colour=on_statins)) + geom_density()
+```
+
+Density plots of the tests stratified by potency
+```{r}
+    ggplot(basic_data, aes(x=log(lactate), colour=potency)) + geom_density()
+  ggplot(basic_data, aes(x=log(alt), colour=potency)) + geom_density()
+  ggplot(basic_data, aes(x=log(ast), colour=potency)) + geom_density()
+  ggplot(basic_data, aes(x=log(troponint), colour=potency)) + geom_density()
+  ggplot(basic_data, aes(x=log(egfr), colour=potency)) + geom_density()
+  ggplot(basic_data, aes(x=log(creat_clear), colour=potency)) + geom_density()
+```
+
+
+Now, we can use propensity score matching on `on_statins` to look at the effects.
+
+```{r}
+
+  #Commented code creates and saves propensity scores. Otherwise, load propensity scores from file.
+  set.seed(100)
+  
+  if(!file.exists("scores_20k_newethnic.Rdata")) {
+    psmodel = reformulate(termlabels = c("age", "gender", "new_ethnic", elix_names), response = 'on_statins2')
+    scores = ps(psmodel,data=basic_data,verbose=TRUE,n.trees=20000)
+    save(scores, file="scores_20k_newethnic.Rdata")
+  } else {
+    load("scores_20k_newethnic.Rdata")
+  }
+  basic_data$ps = scores$ps[,2]
+  match.ps1 <- matchit(on_statins2 ~ ps,data=basic_data[,c("on_statins2","ps")],method="nearest", caliper=0.1)
+  matched_data = basic_data[rownames(basic_data) %in% c(rownames(match.ps1$match.matrix[!is.na(match.ps1$match.matrix),,drop=FALSE]),match.ps1$match.matrix),]
+  
+  #Function to create matched data for a particular variable ensuring that both of the matched pairs do not have missing data
+  create_submatch = function(var, match.ps1, basic_data) {
+    hasmatch = match.ps1$match.matrix[!is.na(match.ps1$match.matrix),,drop=FALSE]
+    submatch = hasmatch[!is.na(basic_data[rownames(hasmatch),var]),,drop=FALSE]
+    subsubmatch = submatch[!is.na(basic_data[submatch,var]),,drop=FALSE]
+    return(basic_data[rownames(basic_data) %in% c(rownames(subsubmatch),subsubmatch),])
+  }
+
+  CreateTableOne(vars=c("age","gender", "new_ethnic", elix_names), strata="on_statins",
+               data=matched_data)
+  
+  CreateTableOne(vars=c("sofa_na","day_28_dead", "day_2_dead", "day_90_dead", "hospital_expire_flag","mech_vent", "vaso_flg",
+                      "lactate", "alt", "ast", "troponint", "troponini",
+                      "creatinine", "creat_clear", "egfr"),
+               strata="on_statins", data=matched_data)
+
+```
+
+From the table, we can clearly see that it is now well balanced.
+
+Redoing our previous analyses graphically,
+
+```{r}
+  plot_OR_by_level(matched_data,"sofa.cat","hospital_expire_flag", factor.var2="on_statins")
+```
+
+```{r}
+  ggplot(matched_data, aes(x=log(lactate), colour=on_statins)) + geom_density()
+  ggplot(matched_data, aes(x=log(alt), colour=on_statins)) + geom_density()
+  ggplot(matched_data, aes(x=log(ast), colour=on_statins)) + geom_density()
+  ggplot(matched_data, aes(x=log(troponint), colour=on_statins)) + geom_density()
+  ggplot(matched_data, aes(x=log(egfr), colour=on_statins)) + geom_density()
+  ggplot(matched_data, aes(x=log(creat_clear), colour=on_statins)) + geom_density()
+```
+
+And including potency data,
+
+```{r}
+  ggplot(matched_data, aes(x=log(lactate), colour=potency)) + geom_density()
+  ggplot(matched_data, aes(x=log(alt), colour=potency)) + geom_density()
+  ggplot(matched_data, aes(x=log(ast), colour=potency)) + geom_density()
+  ggplot(matched_data, aes(x=log(troponint), colour=potency)) + geom_density()
+  ggplot(matched_data, aes(x=log(egfr), colour=potency)) + geom_density()
+  ggplot(matched_data, aes(x=log(creat_clear), colour=potency)) + geom_density()
+```
+
+
+Now, if we do actual analyses, we get the following results
+
+```{r}
+  
+  #Helper function to do Logistic regression for binary vars
+  binom_analyze = function(var) {
+        var_match = create_submatch(var,match.ps1, basic_data)
+    print(nrow(var_match)/2)
+    formul = reformulate(termlabels=c("on_statins"), response=var)
+    var_lm = glm(formul, family="binomial", data=var_match)
+    print(p.adjust(summary(var_lm)$coefficients[,4],n=19))
+    print(exp(coef(var_lm)))
+    print(exp(confint((var_lm))))
+  }
+  
+  #Helper function to do poisson regression
+  poisson_analyze = function(var) {
+        var_match = create_submatch(var,match.ps1, basic_data)
+    print(nrow(var_match)/2)
+    formul = reformulate(termlabels=c("on_statins"), response=var)
+    var_lm = glm(formul, family="poisson", data=var_match)
+    print(summary(var_lm)$coefficients[,4])
+    print(exp(coef(var_lm))-1)
+    print(exp(confint((var_lm)))-1)
+  }
+  
+  #Helper function to do t-tests
+  t_analyze = function(var) {
+        var_match = create_submatch(var,match.ps1, basic_data)
+    print(nrow(var_match)/2)
+    formul = reformulate(termlabels=c("on_statins"), response=var)
+    var_lm = glm(formul, family="gaussian", data=var_match)
+    print(p.adjust(summary(var_lm)$coefficients[,4], n=19))
+    print(exp(coef(var_lm))-1)
+    print(exp(confint((var_lm)))-1)
+  }
+  
+  #Helper function to do log-transformed linear regression. 
+  #Adds half of min non-zero value to account for zeros prior to transform
+  logn_analyze = function(var) {
+            var_match = create_submatch(var,match.ps1, basic_data)
+    print(nrow(var_match)/2)
+    vals = var_match[,var]
+    if(min(vals, na.rm=TRUE) > 0)
+      base = 0
+    else
+      base = min(vals[vals>0], na.rm = TRUE)
+    
+    formul = formula(paste("log(", var, "+", base/2, ") ~ on_statins"))
+    var_lm = glm(formul, family="gaussian", data=var_match)
+    print(p.adjust(summary(var_lm)$coefficients[,4], n=19))
+    print(exp(coef(var_lm))-1)
+    print(exp(confint((var_lm)))-1)
+  }
+  
+  binom_analyze("day_2_dead")
+  binom_analyze("day_28_dead")
+  binom_analyze("day_90_dead")
+  binom_analyze("hospital_expire_flag")
+  binom_analyze("mech_vent")
+  binom_analyze("vaso_flg")
+  
+  t_analyze("sofa_na")
+  t_analyze("respiration")
+  t_analyze("cardiovascular")
+  t_analyze("coagulation")
+  t_analyze("liver")
+  t_analyze("renal")
+  t_analyze("cns")
+  
+  poisson_analyze("sofa_na")
+  poisson_analyze("respiration")
+  poisson_analyze("cardiovascular")
+  poisson_analyze("coagulation")
+  poisson_analyze("liver")
+  poisson_analyze("renal")
+  poisson_analyze("cns")
+  
+  logn_analyze("lactate")
+  logn_analyze("alt")
+  logn_analyze("ast")
+  logn_analyze("troponint")
+  logn_analyze("creat_clear")
+  logn_analyze("egfr")
+  
+```
