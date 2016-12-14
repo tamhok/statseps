@@ -1,10 +1,11 @@
 #!/usr/bin/python
 
 #--------------------------------
-# Written by Marzyeh Ghassemi, CSAIL, MIT 
-# Sept 21, 2012
+# Written by Hok Hei Tam 
+# based on code written by Marzyeh Ghassemi, CSAIL, MIT 
+# 12/14/16
 # Please contact the author with errors found. 
-# mghassem {AT} mit {DOT} edu
+# tamhok {AT} mit {DOT} edu
 #--------------------------------
 
 from __future__ import with_statement
@@ -30,6 +31,8 @@ suppress_file = os.path.join(DRUGS_LIST_PATH, "suppress_list.txt")
 
 # OUTPUT
 SUMMARY_FILE = "notes_output_full.csv"
+
+# Use this SQL file to create the table
 SQL_FILE = "notes_output.sql"
 
 
@@ -73,7 +76,7 @@ def readDrugs(f, genList):
 	lines = [x.lower() for x in lines]
 	genList.append(generics)
 	return dict(zip(generics, lines))
-
+	
 def main():
 	# Print the variables being used for inputs
 	print("Using %s notes from %s" % ("ALL", NOTES_PATH))
@@ -91,8 +94,6 @@ def main():
 	with open(suppress_file) as f:
 		suppress_list = readDrugs(f, genList)
 	flatList = [item for sublist in genList for item in sublist]
-
-
 	
 	# Create indices for the flat list
 	# This allows us to understand which "types" are being used
@@ -126,7 +127,7 @@ def main():
 	has_both = 0
 	row_id = 0
 	
-	# Write heads and notes to new doc
+	# Write heads and notes as csv file
 	with open(SUMMARY_FILE, 'w') as f_out:
 		f_out.write("ROW_ID,HADM_ID,SUBJECT_ID,CHARTDATE,CHARTTIME,HIST_FOUND,KIDNEY,LIVER,HEART,HYPERTENSION,DIABETES,ADMIT_FOUND,STATIN,STATIN_ALT,SUPPRESS," + ",".join(flatList) + "\n")
 		
@@ -221,6 +222,8 @@ def main():
 						# Count the types of each drug
 						member = []
 						member = [sum([x != 0 for x in drugsAdmit[s:e+1]]) for s, e in zip(starts, ends)]
+						
+						# If the patient has a medications on admissions section, save data on doses.
 						if admitFound:
 							# Print items for this patient into csv
 							f_out.write(str(row_id) + "," + str(hadm_id) + "," + str(sid) + "," + str(chartdate) + "," + str(charttime) + "," + str(histFound) + "," + str(kidneyHist) + "," + str(liverHist) + "," + str(heartHist) + "," + str(hypertensionHist) + "," + str(diabetesHist) + "," + str(admitFound) + ","  + ",".join(map(str, member)) + "," + ",".join(map(str, drugsAdmit)) + "\n")
@@ -228,6 +231,8 @@ def main():
 						else:
 							recordsExcluded += 1						
 						
+						
+						# Keep count of how many patients were included/excluded.
 						if member[0] > 0.0001:
 							has_statins += 1
 							if member[1] > 0:
@@ -247,6 +252,7 @@ def main():
 	print("Records Kept: %d, Excluded: %d" % (recordsKept, recordsExcluded))
 	print("On Statins: %d, On Statins and Alts: %d, On Statins and Supps: %d, On Alts only: %d, On suppress only %d" % (has_statins, has_both, has_supp_statin, has_statins_alt, has_suppress))
 
+	# Write an sql file to create the table since there are so many columns
 	with open(SQL_FILE, 'w') as f_out:
 		f_out.write("SET search_path TO mimiciii;\n")
 		f_out.write("CREATE TABLE statins_all\n(\n")
